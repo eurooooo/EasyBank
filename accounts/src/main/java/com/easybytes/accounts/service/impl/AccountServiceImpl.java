@@ -42,6 +42,23 @@ public class AccountServiceImpl implements IAccountsService {
     }
 
     /**
+     * @param customer
+     * @return the new account details
+     */
+    private Accounts createNewAccount(Customer customer) {
+        Accounts newAccount = new Accounts();
+        newAccount.setCustomerId(customer.getCustomerId());
+        long randomAccNumber = 1000000000L + new Random().nextInt(900000000);
+
+        newAccount.setAccountNumber(randomAccNumber);
+        newAccount.setAccountType(AccountsConstants.SAVINGS);
+        newAccount.setBranchAddress(AccountsConstants.ADDRESS);
+        newAccount.setCreatedBy("Anonymous");
+        newAccount.setCreatedAt(LocalDateTime.now());
+        return newAccount;
+    }
+
+    /**
      * @param mobileNumber
      * @return
      */
@@ -62,19 +79,42 @@ public class AccountServiceImpl implements IAccountsService {
     }
 
     /**
-     * @param customer
-     * @return the new account details
+     * @param customerDto - CustomerDto Object
+     * @return boolean indicating if the update of Account details is successful or not
      */
-    private Accounts createNewAccount(Customer customer) {
-        Accounts newAccount = new Accounts();
-        newAccount.setCustomerId(customer.getCustomerId());
-        long randomAccNumber = 1000000000L + new Random().nextInt(900000000);
+    @Override
+    public boolean updateAccount(CustomerDto customerDto) {
+        boolean isUpdated = false;
+        AccountsDto accountsDto = customerDto.getAccountsDto();
+        if(accountsDto !=null ){
+            Accounts accounts = accountsRepository.findById(accountsDto.getAccountNumber()).orElseThrow(
+                    () -> new ResourceNotFoundException("Account", "AccountNumber", accountsDto.getAccountNumber().toString())
+            );
+            AccountsMapper.mapToAccounts(accountsDto, accounts);
+            accounts = accountsRepository.save(accounts);
 
-        newAccount.setAccountNumber(randomAccNumber);
-        newAccount.setAccountType(AccountsConstants.SAVINGS);
-        newAccount.setBranchAddress(AccountsConstants.ADDRESS);
-        newAccount.setCreatedBy("Anonymous");
-        newAccount.setCreatedAt(LocalDateTime.now());
-        return newAccount;
+            Long customerId = accounts.getCustomerId();
+            Customer customer = customerRepository.findById(customerId).orElseThrow(
+                    () -> new ResourceNotFoundException("Customer", "CustomerID", customerId.toString())
+            );
+            CustomerMapper.mapToCustomer(customerDto,customer);
+            customerRepository.save(customer);
+            isUpdated = true;
+        }
+        return  isUpdated;
+    }
+
+    /**
+     * @param mobileNumber - Input Mobile Number
+     * @return boolean indicating if the delete of Account details is successful or not
+     */
+    @Override
+    public boolean deleteAccount(String mobileNumber) {
+        Customer customer = customerRepository.findByMobileNumber(mobileNumber).orElseThrow(
+                () -> new ResourceNotFoundException("Customer", "mobileNumber", mobileNumber)
+        );
+        accountsRepository.deleteByCustomerId(customer.getCustomerId());
+        customerRepository.deleteById(customer.getCustomerId());
+        return true;
     }
 }
